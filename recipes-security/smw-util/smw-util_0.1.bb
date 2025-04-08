@@ -10,16 +10,19 @@ DEPENDS = "smw"
 SRC_URI = " \
 	    file://elesha512.c \
 	    file://simplehash.c \
+	    file://hsmhash.c \
          "
 S = "${WORKDIR}"
 
 do_compile() {
 	${CC} -g -I ${STAGING_INCDIR}/smw -v ${CFLAGS} ${LDFLAGS} -o elesha512 elesha512.c -lsmw -lteec -lele_hsm
 	${CC} -g -I ${STAGING_INCDIR}/smw -v ${CFLAGS} ${LDFLAGS} -o simplehash simplehash.c -lsmw -lteec -lele_hsm
+	${CC} -g -I ${STAGING_INCDIR}/hsm -v ${CFLAGS} ${LDFLAGS} -o hsmhash hsmhash.c -lteec -lele_hsm
 }
 
 do_install() {
 	install -d ${D}${bindir}
 	install -m 0755 elesha512 ${D}${bindir}/
 	install -m 0755 simplehash ${D}${bindir}/
+	install -m 0755 hsmhash ${D}${bindir}/
 }
