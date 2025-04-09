@@ -13,11 +13,13 @@ SRC_URI = " \
 	    file://hsmhash.c \
          "
 S = "${WORKDIR}"
+DEBUGFLAG=""
+# DEBUGFLAG="-g"
 
 do_compile() {
-	${CC} -g -I ${STAGING_INCDIR}/smw -v ${CFLAGS} ${LDFLAGS} -o elesha512 elesha512.c -lsmw -lteec -lele_hsm
-	${CC} -g -I ${STAGING_INCDIR}/smw -v ${CFLAGS} ${LDFLAGS} -o simplehash simplehash.c -lsmw -lteec -lele_hsm
-	${CC} -g -D PSA_COMPLIANT -I ${STAGING_INCDIR}/hsm -v ${CFLAGS} ${LDFLAGS} -o hsmhash hsmhash.c -lteec -lele_hsm
+	${CC} ${DEBUGFLAG} -I ${STAGING_INCDIR}/smw -v ${CFLAGS} ${LDFLAGS} -o elesha512 elesha512.c -lsmw -lteec -lele_hsm
+	${CC} ${DEBUGFLAG} -I ${STAGING_INCDIR}/smw -v ${CFLAGS} ${LDFLAGS} -o simplehash simplehash.c -lsmw -lteec -lele_hsm
+	${CC} ${DEBUGFLAG} -D PSA_COMPLIANT -I ${STAGING_INCDIR}/hsm -v ${CFLAGS} ${LDFLAGS} -o hsmhash hsmhash.c -lteec -lele_hsm
 }
 
 do_install() {
