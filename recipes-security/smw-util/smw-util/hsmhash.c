@@ -1,6 +1,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
-
+#include <sys/mman.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -11,6 +11,8 @@
 const char *myname;
 #define SHA512_LENGTH 64
 #define BSIZE (64 * 1024)
+
+// #define DEBUG_MODE
 
 #ifdef DEBUG_MODE
 #define DEBUG(fmt, ...) fprintf(stderr, "%s: %s:%d: " fmt "\n", myname, __FILE__, __LINE__, ##__VA_ARGS__)
@@ -29,14 +31,14 @@ usage(void)
     exit(1);
 }
 
-int do_hash_test(hsm_hdl_t session_hdl, uint8_t *hash, int dev_fd, unsigned long long length)
+int do_hash_test(hsm_hdl_t session_hdl, uint8_t *hash, uint8_t *map, unsigned long long length)
 {
     op_hash_one_go_args_t hash_args = {0};
     uint8_t input_data[] = "Hello, NXP Secure Enclave!";
     uint8_t output_hash[SHA512_LENGTH];  // SHA-512 output size
     hsm_err_t err;
     uint8_t *ctx_input = NULL;
-    uint8_t block[BSIZE];
+    uint8_t *blockp = map;
     int result;
     int datasize;
     unsigned long long total = 0;
@@ -62,23 +64,16 @@ int do_hash_test(hsm_hdl_t session_hdl, uint8_t *hash, int dev_fd, unsigned long
     else
         datasize = length;
 
-    result = read(dev_fd,block,datasize);
-    if (result == -1) {
-        fprintf(stderr,"%s: Failed to read input data file: %s\n",
-                myname,strerror(errno));
-        exit(12);
-    }
-    if(result != datasize) {
-        fprintf(stderr,"%s: Failed to read enough data from input file: %d/%lld\n",
-                myname,result,length);
-        exit(13);
-    }
-
-    // Prepare the hash arguments
+     // Prepare the hash arguments
     hash_args.algo = HSM_HASH_ALGO_SHA_512;  // Use SHA-512 for this example
     hash_args.svc_flags = HSM_HASH_FLAG_INIT;
-    hash_args.input = block;
+    hash_args.input = map;
     hash_args.input_size = datasize;  // Exclude the null terminator
+
+    DEBUG("mmap: 0x%llx:0x%x Offset=0x%x First: 0x%02x%02x%02x%02x\n",
+        (unsigned long long)hash_args.input,hash_args.input_size,(unsigned int)(hash_args.input - map),
+        hash_args.input[0],hash_args.input[1],hash_args.input[2],hash_args.input[3]
+    );
 
     // Perform the hashing operation
     DEBUG("About to call hsm_do_hash init\n");
@@ -93,20 +88,17 @@ int do_hash_test(hsm_hdl_t session_hdl, uint8_t *hash, int dev_fd, unsigned long
     hash_args.input_size = BSIZE;
     hash_args.svc_flags = HSM_HASH_FLAG_UPDATE;
     while(length > BSIZE) {
-        result = read(dev_fd,block,datasize);
-        if (result == -1) {
-            fprintf(stderr,"%s: Failed to read input data file: %s\n",
-                    myname,strerror(errno));
-            exit(14);
-        }
-        if(result != datasize) {
-            fprintf(stderr,"%s: Failed to read enough data from input file: %d/%d\n",
-                    myname,result,datasize);
-            exit(15);
-        }
-        if((total < 3*BSIZE) || (length < (3*BSIZE)))
-            DEBUG("About to call hsm_do_hash update. total=%d left=%d\n",total,length);
+        hash_args.input += BSIZE;
 
+#ifdef DEBUG_MODE
+        if((total < 3*BSIZE) || (length < (3*BSIZE))) {
+            DEBUG("About to call hsm_do_hash update. total=%llu count=%u\n",total,hash_args.input_size);
+            DEBUG("mmap: 0x%llx:0x%x Offset=0x%x First: 0x%02x%02x%02x%02x\n",
+                (unsigned long long)hash_args.input,hash_args.input_size,(unsigned int)(hash_args.input - map),
+                hash_args.input[0],hash_args.input[1],hash_args.input[2],hash_args.input[3]
+            );
+         }
+#endif
         err = hsm_do_hash(session_hdl, &hash_args);
         if (err != HSM_NO_ERROR) {
             printf("Hashing operation failed with error: 0x%x\n", err);
@@ -117,22 +109,21 @@ int do_hash_test(hsm_hdl_t session_hdl, uint8_t *hash, int dev_fd, unsigned long
     }
 
     hash_args.input_size = length;
+    hash_args.input += BSIZE;
     hash_args.svc_flags = HSM_HASH_FLAG_FINAL;
     hash_args.output = output_hash;
     hash_args.output_size = SHA512_LENGTH;
-    result = read(dev_fd,block,length);
-    if (result == -1) {
-        fprintf(stderr,"%s: Failed to read input data file: %s\n",
-                myname,strerror(errno));
-        exit(12);
-    }
-    if(result != length) {
-        fprintf(stderr,"%s: Failed to read enough data from input file: %d/%llu\n",
-                myname,result,length);
-        exit(13);
-    }
 
-    DEBUG("About to call hsm_do_hash final\n");
+    DEBUG("About to call hsm_do_hash final: total=0x%llx\n",total);
+    DEBUG("mmap: 0x%llx:0x%x Offset=0x%x First: 0x%02x%02x%02x%02x  0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+        (unsigned long long)hash_args.input,hash_args.input_size,(unsigned int)(hash_args.input - map),
+        hash_args.input[0],hash_args.input[1],hash_args.input[2],hash_args.input[3],
+        hash_args.input[hash_args.input_size-8],hash_args.input[hash_args.input_size-7],hash_args.input[hash_args.input_size-6],hash_args.input[hash_args.input_size-5],
+        hash_args.input[hash_args.input_size-4],hash_args.input[hash_args.input_size-3],hash_args.input[hash_args.input_size-2],hash_args.input[hash_args.input_size-1],
+        total
+    );
+    DEBUG("Last: 0x%llx for %d\n",(unsigned long long)(hash_args.input),hash_args.input_size);
+
     err = hsm_do_hash(session_hdl, &hash_args);
     if (err != HSM_NO_ERROR) {
         printf("Hashing operation failed with error: 0x%x\n", err);
@@ -171,7 +162,7 @@ int main(int argc, char *argv[]) {
     int result;
 
     myname = argv[0];
-    DEBUG("Enter:\n",myname);
+    DEBUG("Enter:\n");
     if(argc != 4)
         usage();
     device = argv[1] ;
@@ -233,6 +224,19 @@ int main(int argc, char *argv[]) {
         exit(4);
     }
 
+    uint8_t *map = mmap(NULL, payload_length, PROT_READ, MAP_SHARED, input_fd, 0);
+    if (map == MAP_FAILED) {
+        fprintf(stderr,"%s: mmap fails on %s: %s\n",myname,device,strerror(errno));
+        close(input_fd);
+        return 1;
+    }
+
+    DEBUG("mmap: 0x%llx First: 0x%02x%02x%02x%02x 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+    (unsigned long long)map,map[0],map[1],map[2],map[3],
+          map[payload_length-8],map[payload_length-7],map[payload_length-6],map[payload_length-5],
+          map[payload_length-4],map[payload_length-3],map[payload_length-2],map[payload_length-1]
+          );
+    DEBUG("mmap: map end: 0x%llx %d\n",(unsigned long long)(map+payload_length-14680),14680);
     DEBUG("Open session next\n");
     session_args.mu_type = HSM1;
 
@@ -245,7 +249,7 @@ int main(int argc, char *argv[]) {
     DEBUG("Completed session open\n");
 
     // Perform hash test
-    err = do_hash_test(session_hdl,expectedhash,input_fd,payload_length);
+    err = do_hash_test(session_hdl,expectedhash,map,payload_length);
     if (err != HSM_NO_ERROR) {
         fprintf(stderr,"%s: Hash test failed with error: 0x%x\n",myname,err);
     } else
