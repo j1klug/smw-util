@@ -17,8 +17,9 @@
  *   #define KEYID 0xb8ae6e50u
  * hsmaes: hsmaes.c:150: Key ID (0xb8ae6e50) Already Exists.
  */
-#define KEYID 0x31110011u  // Working key
-
+// #define KEYID 0x31110011u  // Working key id
+// #define KEYID 0x6f0258ffu  // Broken key id
+#define KEYID 0x2fff31f8u
 
 const char *myname;
 #define SHA512_LENGTH 64
