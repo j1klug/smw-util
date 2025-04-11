@@ -11,7 +11,9 @@ SRC_URI = " \
 	    file://elesha512.c \
 	    file://simplehash.c \
 	    file://hsmhash.c \
+	    file://hsmaes.c \
          "
+
 S = "${WORKDIR}"
 DEBUGFLAG=""
 # DEBUGFLAG="-g"
@@ -20,6 +22,7 @@ do_compile() {
 	${CC} ${DEBUGFLAG} -I ${STAGING_INCDIR}/smw -v ${CFLAGS} ${LDFLAGS} -o elesha512 elesha512.c -lsmw -lteec -lele_hsm
 	${CC} ${DEBUGFLAG} -I ${STAGING_INCDIR}/smw -v ${CFLAGS} ${LDFLAGS} -o simplehash simplehash.c -lsmw -lteec -lele_hsm
 	${CC} ${DEBUGFLAG} -D PSA_COMPLIANT -I ${STAGING_INCDIR}/hsm -v ${CFLAGS} ${LDFLAGS} -o hsmhash hsmhash.c -lteec -lele_hsm
+	${CC} ${DEBUGFLAG} -D PSA_COMPLIANT -I ${STAGING_INCDIR}/hsm -v ${CFLAGS} ${LDFLAGS} -o hsmaes hsmaes.c -lteec -lele_hsm
 }
 
 do_install() {
@@ -27,4 +30,5 @@ do_install() {
 	install -m 0755 elesha512 ${D}${bindir}/
 	install -m 0755 simplehash ${D}${bindir}/
 	install -m 0755 hsmhash ${D}${bindir}/
+	install -m 0755 hsmaes ${D}${bindir}/
 }
