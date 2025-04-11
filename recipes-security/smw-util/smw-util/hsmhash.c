@@ -34,7 +34,6 @@ usage(void)
 int do_hash_test(hsm_hdl_t session_hdl, uint8_t *hash, uint8_t *map, unsigned long long length)
 {
     op_hash_one_go_args_t hash_args = {0};
-    uint8_t input_data[] = "Hello, NXP Secure Enclave!";
     uint8_t output_hash[SHA512_LENGTH];  // SHA-512 output size
     hsm_err_t err;
     uint8_t *ctx_input = NULL;
