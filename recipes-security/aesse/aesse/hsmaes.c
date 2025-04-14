@@ -1,5 +1,3 @@
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdio.h>
 #include <string.h>
@@ -42,40 +40,19 @@ usage(void)
     exit(1);
 }
 
-int do_hash_test(hsm_hdl_t session_hdl, int fd, unsigned long long length)
-{
-    return HSM_NO_ERROR;
-}
-
 int main(int argc, char *argv[]) {
     hsm_hdl_t session_hdl;
     open_session_args_t session_args = {0};
     hsm_err_t err;
-    // const char *sha512sum_fn;
-    // int sha512sum_fd;
-    size_t payload_length;
-    uint8_t *payload;
     const char *device;
     char *endptr;
     int i;
-    int input_fd;
     int result;
     open_svc_key_store_args_t open_svc_key_store_args = {0};
     hsm_hdl_t key_store_hdl, key_mgmt_hdl;
 
     myname = argv[0];
     DEBUG("Enter:\n");
-    if(argc != 2)
-        usage();
-    device = argv[1] ;
-    payload_length = strlen(device);
-    DEBUG("Length of input file is %lu",payload_length);
-
-    input_fd = open(device,O_RDONLY);
-    if(input_fd == -1) {
-        MSG("Could not open %s\n",device);
-        exit(4);
-    }
 
     DEBUG("Open session next\n");
     session_args.mu_type = HSM1;
@@ -168,21 +145,5 @@ int main(int argc, char *argv[]) {
     DEBUG("Key after operation is 0x%x\n",key_id);
     hsm_close_key_store_service (key_store_hdl);
     hsm_close_session(session_hdl);
-
-    MSG("AES Key\n");
-    fprintf(stderr,"\n");
-    exit(0);
-    err = do_hash_test(session_hdl,input_fd,payload_length);
-    if (err != HSM_NO_ERROR)
-        MSG("%s: Hash test failed with error: 0x%x\n",myname,err);
-    else
-        printf("%s: Hash passes\n",myname);
-
-    // Close the session
-    err = hsm_close_session(session_hdl);
-    if (err != HSM_NO_ERROR) {
-        MSG("Failed to close HSM session with error: 0x%x\n", err);
-    }
-
     return 0;
 }
