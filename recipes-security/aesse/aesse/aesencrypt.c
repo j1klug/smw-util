@@ -144,6 +144,7 @@ int main(int argc, char *argv[]) {
     }
 
 
+    memset(&cipher_args,0,sizeof cipher_args);
     cipher_args.key_identifier = KEYID;
     cipher_args.iv = SM2_IDENTIFIER;
     cipher_args.iv_size = sizeof(SM2_IDENTIFIER);
