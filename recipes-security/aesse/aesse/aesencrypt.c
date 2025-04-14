@@ -15,13 +15,13 @@
  *   #define KEYID 0xb8ae6e50u
  * hsmaes: hsmaes.c:150: Key ID (0xb8ae6e50) Already Exists.
  */
-// #define KEYID 0x31110011u  // Working key id
-// #define KEYID 0x6f0258ffu  // Broken key id
-#define KEYID 0x2fff31f8u
+#define KEYID 0x31110011u  // Example key id
+
+static uint8_t SM2_IDENTIFIER[16] = {
+    0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38
+};
 
 const char *myname;
-#define SHA512_LENGTH 64
-#define BSIZE (64 * 1024)
 
 #define DEBUG_MODE
 
@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
     }
     convert[2] = 0;
     input_string = argv[1];
-    slength = (size_t)strtoull(argv[2], &endptr, 10);
+    slength = (size_t)strtoull(argv[2], &endptr, 10)/2;
     if(*endptr != '\0') {
         MSG("Invalid parameter length (2nd parameter)\n");
         usage();
@@ -68,12 +68,12 @@ int main(int argc, char *argv[]) {
     }
     DEBUG("Length is %lu\n",slength);
 
-    sp = malloc(slength/2);
-    od = malloc(slength/2);
-    for(i=0; i < slength; i+=2) {
-        convert[0] = input_string[i];
-        convert[1] = input_string[i+1];
-        sp[i/2] = (size_t)strtoull(convert, &endptr, 16);
+    sp = malloc(slength);
+    od = malloc(slength);
+    for(i=0; i < slength; i++) {
+        convert[0] = input_string[i*2];
+        convert[1] = input_string[i*2+1];
+        sp[i] = (size_t)strtoull(convert, &endptr, 16);
         if(*endptr != '\0') {
             fprintf(stderr,"%s: Data length error, must be a decimal number: %s\n",myname,endptr);
             exit(2);
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef DEBUG_MODE
     fprintf(stderr,"Input is:\n");
-    for (i=0;i<slength/2;i++) {
+    for (i=0;i<slength;i++) {
         fprintf(stderr,"%02x",sp[i]);
     }
     fputc('\n',stderr);
@@ -102,9 +102,8 @@ int main(int argc, char *argv[]) {
 
     open_svc_key_store_args.key_store_identifier = KEYSTOREID;
     open_svc_key_store_args.authentication_nonce = KEYSTOREAUTHNONCE;
-    open_svc_key_store_args.flags = HSM_SVC_KEY_STORE_FLAGS_CREATE | HSM_SVC_KEY_STORE_FLAGS_STRICT_OPERATION;
+    open_svc_key_store_args.flags = HSM_SVC_KEY_STORE_FLAGS_LOAD;
 
-    open_svc_key_store_args.flags = 0;
     err = hsm_open_key_store_service(session_hdl, &open_svc_key_store_args, &key_store_hdl);
     if(err != HSM_NO_ERROR){
         hsm_close_key_store_service (key_store_hdl);
@@ -144,15 +143,18 @@ int main(int argc, char *argv[]) {
               (unsigned long long)cipher_hdl,(unsigned long long)open_cipher_args.cipher_hdl);
     }
 
+
     cipher_args.key_identifier = KEYID;
+    cipher_args.iv = SM2_IDENTIFIER;
+    cipher_args.iv_size = sizeof(SM2_IDENTIFIER);
     cipher_args.flags = HSM_CIPHER_ONE_GO_FLAGS_ENCRYPT;
     cipher_args.cipher_algo = HSM_CIPHER_ONE_GO_ALGO_ECB;
     cipher_args.input = sp;
-    cipher_args.input_size = slength/2;
+    cipher_args.input_size = slength;
     cipher_args.output = od;
-    cipher_args.output_size = slength/2;
+    cipher_args.output_size = slength;
 
-    err = hsm_do_cipher(cipher_hdl,&cipher_args);
+    err = hsm_cipher_one_go(cipher_hdl,&cipher_args);
 
     if(err != HSM_NO_ERROR){
         hsm_close_cipher_service(cipher_hdl);

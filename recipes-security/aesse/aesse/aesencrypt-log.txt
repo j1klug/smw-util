@@ -1,0 +1,22 @@
+aesencrypt deadbeef01238765 16
+aesencrypt: aesencrypt.c:56: Enter:
+
+aesencrypt: aesencrypt.c:69: Length is 8
+
+Input is:
+deadbeef01238765
+aesencrypt: aesencrypt.c:92: Open session next
+
+aesencrypt: aesencrypt.c:101: Completed session open
+
+aesencrypt: aesencrypt.c:114: hsm_open_key_store_service success
+
+aesencrypt: aesencrypt.c:129: hsm_open_key_management success
+
+aesencrypt: aesencrypt.c:142: hsm_open_cipher_service success: cipher_hdl: 0x6188a0be open_cipher_args.cipher_hdl: 0x6188a0be
+
+
+SAB Error: SAB CMD [0x62] Resp [0x429] - MU sanity check failed / Invalid parameters.
+
+aesencrypt: aesencrypt.c:163: hsm_do_cipher failed, err=0x4
+

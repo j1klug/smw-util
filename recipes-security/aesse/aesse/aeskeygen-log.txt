@@ -1,0 +1,5 @@
+root@imx91frdm:~# find /etc/ele -type f
+/etc/ele/000000010000000700000004
+/etc/ele/ele_nvm_master
+/etc/ele/000000010000000000000003
+

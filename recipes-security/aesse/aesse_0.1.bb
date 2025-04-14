@@ -13,8 +13,8 @@ SRC_URI = " \
          "
 
 S = "${WORKDIR}"
-DEBUGFLAG=""
-# DEBUGFLAG="-g"
+# DEBUGFLAG=""
+DEBUGFLAG="-g"
 
 do_compile() {
 	${CC} ${DEBUGFLAG} -D PSA_COMPLIANT -I ${STAGING_INCDIR}/hsm -v ${CFLAGS} ${LDFLAGS} -o aeskeygen aeskeygen.c -lele_hsm
