@@ -37,12 +37,7 @@ int main(int argc, char *argv[]) {
     hsm_hdl_t session_hdl;
     open_session_args_t session_args = {0};
     hsm_err_t err;
-    // const char *sha512sum_fn;
-    // int sha512sum_fd;
-    const char *device;
-    char *endptr;
-    int i;
-    int result;
+
     open_svc_key_store_args_t open_svc_key_store_args = {0};
     hsm_hdl_t key_store_hdl, key_mgmt_hdl;
 
