@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     int i;
     int result;
     uint8_t *sp;
-    size_t slength;
+    size_t blength; // Byte length of payload
     uint8_t *od;
     char *input_string;
     char convert[3];
@@ -60,17 +60,22 @@ int main(int argc, char *argv[]) {
     }
     convert[2] = 0;
     input_string = argv[1];
-    slength = (size_t)strtoull(argv[2], &endptr, 10)/2;
+    blength = (size_t)strtoull(argv[2], &endptr, 10)/2;
     if(*endptr != '\0') {
         MSG("Invalid parameter length (2nd parameter)\n");
         usage();
         exit(2);
     }
-    DEBUG("Length is %lu\n",slength);
+    DEBUG("Length is %lu\n",blength);
+    if (blength < 16) {
+        MSG("Invalid paramater length, less than 32 characters\n");
+        usage();
+        exit(3);
+    }
 
-    sp = malloc(slength);
-    od = malloc(slength);
-    for(i=0; i < slength; i++) {
+    sp = malloc(blength);
+    od = malloc(blength);
+    for(i=0; i < blength; i++) {
         convert[0] = input_string[i*2];
         convert[1] = input_string[i*2+1];
         sp[i] = (size_t)strtoull(convert, &endptr, 16);
@@ -82,7 +87,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef DEBUG_MODE
     fprintf(stderr,"Input is:\n");
-    for (i=0;i<slength;i++) {
+    for (i=0;i<blength;i++) {
         fprintf(stderr,"%02x",sp[i]);
     }
     fputc('\n',stderr);
@@ -149,11 +154,11 @@ int main(int argc, char *argv[]) {
     cipher_args.iv = SM2_IDENTIFIER;
     cipher_args.iv_size = sizeof(SM2_IDENTIFIER);
     cipher_args.flags = HSM_CIPHER_ONE_GO_FLAGS_ENCRYPT;
-    cipher_args.cipher_algo = HSM_CIPHER_ONE_GO_ALGO_ECB;
+    cipher_args.cipher_algo = HSM_CIPHER_ONE_GO_ALGO_CBC;
     cipher_args.input = sp;
-    cipher_args.input_size = slength;
+    cipher_args.input_size = blength;
     cipher_args.output = od;
-    cipher_args.output_size = slength;
+    cipher_args.output_size = blength;
 
     err = hsm_cipher_one_go(cipher_hdl,&cipher_args);
 
@@ -169,7 +174,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef DEBUG_MODE
     fprintf(stderr,"Output is:\n");
-    for (i=0;i<slength;i++)
+    for (i=0;i<blength;i++)
         fprintf(stderr,"%02x",od[i]);
     fputc('\n',stderr);
 #endif
