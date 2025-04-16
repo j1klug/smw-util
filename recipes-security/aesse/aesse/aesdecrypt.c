@@ -36,7 +36,7 @@ const char *myname;
 #define MSG(fmt, ...) fprintf(stderr, "%s: %s:%d: " fmt "\n", myname, __FILE__, __LINE__, ##__VA_ARGS__)
 void usage(void)
 {
-    MSG("Usage:\n%s hexstring length outfile\n",myname);
+    MSG("Usage:\n%s outfile\n",myname);
 }
 int main(int argc, char *argv[]) {
     hsm_hdl_t session_hdl;
@@ -53,49 +53,48 @@ int main(int argc, char *argv[]) {
     open_svc_key_store_args_t open_svc_key_store_args = {0};
     hsm_hdl_t key_store_hdl, key_mgmt_hdl;
     op_cipher_one_go_args_t cipher_args = {0};
-    int fdout;
-    const char *fnout;
+    int fdin;
+    const char *fnin;
     int exitstatus = 0;
+    struct stat statbuf;
 
     myname = argv[0];
     DEBUG("Enter:\n");
-    if (argc != 4) {
+    if (argc != 2) {
         usage();
         exit(1);
     }
-    convert[2] = 0;
-    input_string = argv[1];
-    blength = (size_t)strtoull(argv[2], &endptr, 10)/2;
-    if(*endptr != '\0') {
-        MSG("Invalid parameter length (2nd parameter)\n");
-        usage();
-        exit(2);
-    }
-    DEBUG("Length is %lu\n",blength);
-    if (blength < 16) {
-        MSG("Invalid paramater length, less than 32 characters\n");
-        usage();
-        exit(3);
-    }
 
-    fnout = argv[3];
-    fdout = open(fnout,O_CREAT|O_TRUNC|O_WRONLY,S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-    if(fdout == -1) {
-        MSG("ERROR: open: %s Failed: %s\n",fnout,strerror(errno));
+    fnin = argv[1];
+    fdin = open(fnin,O_RDONLY);
+    if(fdin == -1) {
+        MSG("ERROR: open: %s Failed: %s\n",fnin,strerror(errno));
         exit(7);
     }
+    result = fstat(fdin,&statbuf);
+    if (result == -1) {
+        MSG("ERROR: stat: %s Failed: %s\n",fnin,strerror(errno));
+        exitstatus = 21;
+        exit(8);
+    }
 
+    blength = statbuf.st_size;
     sp = malloc(blength);
-    od = malloc(blength);
-    for(i=0; i < blength; i++) {
-        convert[0] = input_string[i*2];
-        convert[1] = input_string[i*2+1];
-        sp[i] = (size_t)strtoull(convert, &endptr, 16);
-        if(*endptr != '\0') {
-            fprintf(stderr,"%s: Data length error, must be a decimal number: %s\n",myname,endptr);
-            exit(12);
+
+
+    result = read(fdin,sp,blength);
+    if (result != blength) {
+        if (result == -1) {
+            MSG("ERROR: read: %s Failed: %s\n",fnin,strerror(errno));
+            exit(9);
+        }
+        if(result != blength) {
+            MSG("ERROR: read not complete: %d/%d\n",result,blength);
+            exit(10);
         }
     }
+
+    od = malloc(blength);
 
 #ifdef DEBUG_MODE
     fprintf(stderr,"Input is:\n");
@@ -165,7 +164,7 @@ int main(int argc, char *argv[]) {
     cipher_args.key_identifier = KEYID;
     cipher_args.iv = SM2_IDENTIFIER;
     cipher_args.iv_size = sizeof(SM2_IDENTIFIER);
-    cipher_args.flags = HSM_CIPHER_ONE_GO_FLAGS_ENCRYPT;
+    cipher_args.flags = HSM_CIPHER_ONE_GO_FLAGS_DECRYPT;
     cipher_args.cipher_algo = HSM_CIPHER_ONE_GO_ALGO_CBC;
     cipher_args.input = sp;
     cipher_args.input_size = blength;
@@ -174,6 +173,7 @@ int main(int argc, char *argv[]) {
 
     // err = hsm_cipher(cipher_hdl,&cipher_args);
     err = hsm_cipher_one_go(cipher_hdl,&cipher_args);
+
     if(err != HSM_NO_ERROR){
         exitstatus = 19;
         MSG("hsm_do_cipher failed, err=0x%X\n",err);
@@ -182,27 +182,11 @@ int main(int argc, char *argv[]) {
         DEBUG("hsm_do_cipher success\n");
     }
 
-#ifdef DEBUG_MODE
-    MSG("Output is:\n");
+
+    DEBUG("Output is:\n");
     for (i=0;i<blength;i++)
         fprintf(stderr,"%02x",od[i]);
     fputc('\n',stderr);
-#endif
-
-    result = write(fdout,od,blength);
-    if (result != blength) {
-        unlink(fnout);
-        if (result == -1) {
-            MSG("ERROR: write: %s Failed: %s\n",fnout,strerror(errno));
-            exitstatus = 21;
-            goto doexit;
-        }
-        if(result != blength) {
-            MSG("ERROR: write not complete: %d/%d\n",result,blength);
-            exitstatus = 22;
-            goto doexit;
-        }
-    }
 
 doexit:
     hsm_close_cipher_service(cipher_hdl);
